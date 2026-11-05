@@ -11,8 +11,16 @@ class CountdownVerifier:
         ast.Sub: lambda a, b: a - b,
         ast.Mult: lambda a, b: a * b,
         ast.Div: lambda a, b: a / b if b != 0 else None,
-        ast.USub: lambda a: -a
+        ast.USub: lambda a: -a,
+        ast.UAdd: lambda a: +a
     }
+
+    ALLOWED_NODE_TYPES = (
+        ast.Expression,
+        ast.BinOp,
+        ast.UnaryOp,
+        ast.Constant
+    )
 
     @staticmethod
     def extract_tags(text: str) -> Tuple[Optional[str], Optional[str]]:
@@ -31,16 +39,29 @@ class CountdownVerifier:
         return thought, answer
 
     @classmethod
+    def is_safe_ast(cls, tree: ast.AST) -> bool:
+        """Verifica che l'albero contenga SOLO nodi e operatori aritmetici consentiti."""
+        for node in ast.walk(tree):
+            if not isinstance(node, cls.ALLOWED_NODE_TYPES):
+                return False
+            if isinstance(node, ast.BinOp) and type(node.op) not in cls.ALLOWED_OPERATORS:
+                return False
+            if isinstance(node, ast.UnaryOp) and type(node.op) not in cls.ALLOWED_OPERATORS:
+                return False
+            if isinstance(node, ast.Constant):
+                # Esclude stringhe, None e booleani (in Python bool e sottoclasse di int)
+                if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
+                    return False
+        return True
+
+    @classmethod
     def evaluate_ast(cls, node: ast.AST) -> Optional[float]:
         """Valuta ricorsivamente un nodo AST consentendo solo operazioni matematiche di base."""
         if isinstance(node, ast.Expression):
             return cls.evaluate_ast(node.body)
 
-        elif isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        elif isinstance(node, ast.Constant) and isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
             return float(node.value)
-
-        elif hasattr(ast, 'Num') and isinstance(node, ast.Num):
-            return float(node.n)
 
         elif isinstance(node, ast.UnaryOp):
             op_func = cls.ALLOWED_OPERATORS.get(type(node.op))
@@ -59,7 +80,7 @@ class CountdownVerifier:
                 return None
             try:
                 return op_func(left_val, right_val)
-            except ZeroDivisionError:
+            except (ZeroDivisionError, OverflowError):
                 return None
 
         return None
@@ -69,16 +90,11 @@ class CountdownVerifier:
         """Estrae tutti i numeri utilizzati nell'espressione AST."""
         numbers = []
         for n in ast.walk(node):
-            if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)) and not isinstance(n.value, bool):
                 if float(n.value).is_integer():
                     numbers.append(int(n.value))
                 else:
                     numbers.append(n.value)
-            elif hasattr(ast, 'Num') and isinstance(n, ast.Num):
-                if float(n.n).is_integer():
-                    numbers.append(int(n.n))
-                else:
-                    numbers.append(n.n)
         return numbers
 
     @classmethod
@@ -105,14 +121,19 @@ class CountdownVerifier:
             result["error_msg"] = "Tag <answer> non trovato o vuoto"
             return result
 
+        # 1. Parsing AST e Whitelist di sicurezza
         try:
             clean_expr = answer_str.split("=")[0].strip()
             tree = ast.parse(clean_expr, mode='eval')
+            if not cls.is_safe_ast(tree):
+                result["error_msg"] = "Espressione contiene elementi non consentiti (solo +, -, *, /, parentesi e numeri)"
+                return result
             result["valid_syntax"] = True
         except Exception as e:
             result["error_msg"] = f"Errore sintassi AST: {e}"
             return result
 
+        # 2. Controllo dei numeri utilizzati
         used_numbers = cls.extract_numbers_from_ast(tree)
         result["used_numbers"] = used_numbers
 
@@ -130,6 +151,7 @@ class CountdownVerifier:
             result["error_msg"] = f"Numeri non validi o usati piu volte: {used_numbers} (Disponibili: {available_numbers})"
             return result
 
+        # 3. Calcolo del valore
         computed = cls.evaluate_ast(tree)
         result["computed_value"] = computed
 
@@ -137,6 +159,7 @@ class CountdownVerifier:
             result["error_msg"] = "Valutazione fallita (es. divisione per zero)"
             return result
 
+        # 4. Controllo del target
         if abs(computed - target) < 1e-6:
             result["is_correct"] = True
         else:
