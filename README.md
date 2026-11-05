@@ -72,3 +72,10 @@ countdown-grpo-reasoning/
 * **DeepSeek-R1**: DeepSeek-AI (2025). *DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning*. arXiv:2501.12948.
 * **Gandhi et al. (2025)**: *Cognitive Behaviors that Enable Self-Improving Reasoners, or, Four Habits of Highly Effective STaRs*. arXiv:2503.01307.
 * **Wei et al. (2022)**: *Chain-of-Thought Prompting Elicits Reasoning in Large Language Models*. NeurIPS 2022.
+
+---
+
+## ?? In-Depth Theory & Credit Assignment Guide
+
+For a step-by-step mathematical breakdown of how GRPO assigns advantages and reinforces tokens without a Critic network, read our guide:  
+?? **[Understanding Credit Assignment in GRPO (Step-by-Step Numerical Example)](docs/GRPO_CREDIT_ASSIGNMENT.md)**
