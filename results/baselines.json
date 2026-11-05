@@ -1,0 +1,7 @@
+{
+  "zero_shot_accuracy": 0.0,
+  "zero_shot_tokens": 20.9,
+  "cot_accuracy": 0.0,
+  "cot_tokens": 351.9,
+  "benchmark_samples": 50
+}
