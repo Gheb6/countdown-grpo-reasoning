@@ -3,7 +3,7 @@ import itertools
 from typing import List, Dict, Any
 
 def solve_countdown_all(numbers: List[int]) -> Dict[int, str]:
-    """Trova tutti i target interi positivi raggiungibili con i numeri dati."""
+    """Find all reachable positive integer targets for the given list of numbers."""
     targets = {}
 
     for length in range(2, len(numbers) + 1):
@@ -32,7 +32,7 @@ def solve_countdown_all(numbers: List[int]) -> Dict[int, str]:
     return targets
 
 def generate_countdown_dataset(num_samples: int, seed: int = 42) -> List[Dict[str, Any]]:
-    """Genera un dataset di puzzle Countdown garantiti solubili."""
+    """Generate a dataset of Countdown puzzles with guaranteed solvability."""
     random.seed(seed)
     dataset = []
     seen = set()
@@ -46,6 +46,7 @@ def generate_countdown_dataset(num_samples: int, seed: int = 42) -> List[Dict[st
             continue
 
         reachable = solve_countdown_all(numbers)
+        # Filter targets to ensure non-triviality (not equal to any starting number and >= 10)
         valid_targets = [t for t in reachable.keys() if t not in numbers and t >= 10]
 
         if valid_targets:

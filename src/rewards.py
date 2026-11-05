@@ -7,6 +7,7 @@ ALLOWED_OPERATORS = {
     ast.Sub: lambda a, b: a - b,
     ast.Mult: lambda a, b: a * b,
     ast.Div: lambda a, b: a / b if b != 0 else None,
+    ast.FloorDiv: lambda a, b: a // b if b != 0 else None,
     ast.USub: lambda a: -a,
     ast.UAdd: lambda a: +a
 }
@@ -15,10 +16,18 @@ ALLOWED_NODE_TYPES = (
     ast.Expression,
     ast.BinOp,
     ast.UnaryOp,
-    ast.Constant
+    ast.Constant,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.USub,
+    ast.UAdd
 )
 
-def is_safe_math_ast(tree):
+def is_safe_math_ast(tree: ast.AST) -> bool:
+    """Check that the AST tree only contains allowed arithmetic nodes and operators."""
     for node in ast.walk(tree):
         if not isinstance(node, ALLOWED_NODE_TYPES):
             return False
@@ -32,7 +41,7 @@ def is_safe_math_ast(tree):
     return True
 
 def format_reward_func(completions, **kwargs) -> List[float]:
-    """Premia (+0.2) il rispetto del formato <think>...</think><answer>...</answer>."""
+    """Rewards (+0.2) compliance with the <think>...</think><answer>...</answer> XML structure."""
     rewards = []
     pattern = r"^<think>.*?</think>\s*<answer>.*?</answer>$"
     for comp in completions:
@@ -46,7 +55,7 @@ def format_reward_func(completions, **kwargs) -> List[float]:
     return rewards
 
 def equation_validity_reward_func(completions, numbers, **kwargs) -> List[float]:
-    """Premia (+0.1) se l'espressione rispetta la sintassi AST e non usa numeri inventati."""
+    """Rewards (+0.1) if the expression is syntactically valid and uses only allowed numbers."""
     rewards = []
     for comp, nums in zip(completions, numbers):
         content = comp[0]["content"] if isinstance(comp, list) else comp
@@ -67,15 +76,18 @@ def equation_validity_reward_func(completions, numbers, **kwargs) -> List[float]
             avail = list(nums)
             valid = True
             for u in used:
-                if u in avail: avail.remove(u)
-                else: valid = False; break
+                if u in avail:
+                    avail.remove(u)
+                else:
+                    valid = False
+                    break
             rewards.append(0.1 if (valid and len(used) > 0) else 0.0)
         except Exception:
             rewards.append(0.0)
     return rewards
 
 def accuracy_reward_func(completions, numbers, target, **kwargs) -> List[float]:
-    """Premia (+1.0) se il risultato matematico e esattamente uguale al target."""
+    """Rewards (+1.0) if the mathematical evaluation strictly matches the target value."""
     rewards = []
     for comp, nums, tgt in zip(completions, numbers, target):
         content = comp[0]["content"] if isinstance(comp, list) else comp
@@ -96,20 +108,28 @@ def accuracy_reward_func(completions, numbers, target, **kwargs) -> List[float]:
             avail = list(nums)
             valid = True
             for u in used:
-                if u in avail: avail.remove(u)
-                else: valid = False; break
+                if u in avail:
+                    avail.remove(u)
+                else:
+                    valid = False
+                    break
             if not valid or len(used) == 0:
                 rewards.append(0.0)
                 continue
 
             def ev(node):
-                if isinstance(node, ast.Expression): return ev(node.body)
-                elif isinstance(node, ast.Constant): return float(node.value)
+                if isinstance(node, ast.Expression):
+                    return ev(node.body)
+                elif isinstance(node, ast.Constant):
+                    return float(node.value)
                 elif isinstance(node, ast.UnaryOp):
-                    op = ALLOWED_OPERATORS.get(type(node.op)); v = ev(node.operand)
+                    op = ALLOWED_OPERATORS.get(type(node.op))
+                    v = ev(node.operand)
                     return op(v) if op and v is not None else None
                 elif isinstance(node, ast.BinOp):
-                    op = ALLOWED_OPERATORS.get(type(node.op)); l = ev(node.left); r = ev(node.right)
+                    op = ALLOWED_OPERATORS.get(type(node.op))
+                    l = ev(node.left)
+                    r = ev(node.right)
                     return op(l, r) if op and l is not None and r is not None else None
                 return None
 

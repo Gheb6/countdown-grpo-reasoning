@@ -8,63 +8,65 @@ Group 2 - *Reasoning with Verifiable Rewards*
 
 ---
 
-## 🎯 Panoramica del Progetto
+## 🎯 Project Overview
 
-Il progetto ha l'obiettivo di migliorare le capacità di ragionamento matematico di un Language Model di piccola taglia (0.5B / 1.5B parametri, nello specifico `Qwen/Qwen2.5-0.5B-Instruct` o `1.5B`) applicando l'algoritmo di **Reinforcement Learning GRPO (Group Relative Policy Optimization)** su un task interamente verificabile in modo deterministico: il puzzle aritmetico **Countdown**.
+This project aims to enhance the mathematical reasoning capabilities of small language models (0.5B to 1.5B parameters, specifically `Qwen/Qwen2.5-0.5B-Instruct` or `1.5B`) using **Group Relative Policy Optimization (GRPO)** reinforcement learning on a verifiable task: the arithmetic game **Countdown**.
 
-Il progetto confronta tre metodologie:
-1. **Zero-Shot Diretto**: Il modello risponde direttamente con l'equazione finale senza passaggi intermedi.
-2. **Chain-of-Thought (CoT) Prompting**: Il modello è spronato a ragionare passo-passo prima di fornire l'equazione finale (*Wei et al., 2022*).
-3. **GRPO con Verifiable Rewards**: Il modello è addestrato con RL basato su reward deterministici (*DeepSeekMath / DeepSeek-R1-Zero*), premiando accuratezza e formattazione `<think>...</think><answer>...</answer>`.
+We compare three methodologies:
+1. **Zero-Shot Direct**: The model answers directly with the final equation without explanation.
+2. **Chain-of-Thought (CoT) Prompting**: The model is prompted to think step-by-step before producing the final answer (*Wei et al., 2022*).
+3. **GRPO with Verifiable Rewards**: The model is fine-tuned via RL with rule-based deterministic rewards (*DeepSeekMath / DeepSeek-R1-Zero*), encouraging reasoning within `<think>...</think>` and equation output in `<answer>...</answer>`.
 
 ---
 
-## 📁 Struttura della Repository
+## 📁 Repository Structure
 
 ```text
 countdown-grpo-reasoning/
 ├── notebooks/
-│   ├── 01_dataset_and_verifier.ipynb  # Verificatore AST, Unit Test e Generatore Puzzle
-│   ├── 02_baseline_evaluation.ipynb   # Valutazione Metodi 1 (Zero-Shot) e 2 (CoT)
-│   └── 03_grpo_training.ipynb        # Training RL con GRPOTrainer e Reward Verificabili
+│   ├── 01_dataset_and_verifier.ipynb  # AST Verifier, Unit Tests, and Puzzle Generator
+│   ├── 02_baseline_evaluation.ipynb   # Method 1 (Zero-Shot) and Method 2 (CoT) Evaluation
+│   └── 03_grpo_training.ipynb        # RL Training with GRPOTrainer and Verifiable Rewards
 ├── src/
-│   ├── verifier.py                    # Classe CountdownVerifier (parsing AST sicuro)
-│   ├── dataset_generator.py           # Generatore ricorsivo di puzzle garantiti solubili
-│   └── rewards.py                     # Funzioni di reward per TRL GRPOTrainer
-├── papers/                            # Paper di riferimento e Dispensa Fronte-Retro
+│   ├── verifier.py                    # CountdownVerifier class (secure AST parsing)
+│   ├── dataset_generator.py           # Recursive puzzle generator with guaranteed solvability
+│   └── rewards.py                     # Reward functions for TRL GRPOTrainer
+├── papers/                            # Reference papers and Duplex Study Reader
 │   ├── Dispensa_Estratti_Studio_FronteRetro.pdf
 │   └── ...
-├── data/                              # Train e Test set generati (jsonl)
-└── results/                           # Metriche e log per la relazione
+├── data/                              # Generated train and test datasets (JSONL)
+│   ├── test_countdown.jsonl           # 200 benchmark test puzzles
+│   └── train_countdown.jsonl          # 1,000 training puzzles
+└── results/                           # Evaluation metrics and baselines
 ```
 
 ---
 
-## 💻 Requisiti di Esecuzione: Google Colab (GPU vs Senza GPU)
+## 💻 Compute Requirements: Google Colab (GPU vs CPU)
 
-| Notebook | Esecuzione su Colab | GPU Necessaria? | Note Hardware |
+| Notebook | Environment | GPU Needed? | Hardware Details |
 | :--- | :--- | :---: | :--- |
-| **`01_dataset_and_verifier.ipynb`** | Colab / Locale | ❌ **No (CPU)** | Pura logica matematica e AST in Python. Termina in ~1 minuto. |
-| **`02_baseline_evaluation.ipynb`** | Colab T4 | ⚡ **Consigliata (T4 Gratuita)** | Su GPU T4 valuta 50-100 problemi in ~2-3 min. Su CPU è possibile per 0.5B ma lenta. |
-| **`03_grpo_training.ipynb`** | Colab T4 / Kaggle | ✅ **Sì (Obbligatoria T4)** | L'RL deve campionare $G=4$ output paralleli per prompt. Richiede circa 1 ora su T4 gratuita con LoRA. |
+| **`01_dataset_and_verifier.ipynb`** | Colab / Local | ❌ **No (CPU)** | Pure Python combinatorial logic and AST parsing. Completes in ~1 minute. |
+| **`02_baseline_evaluation.ipynb`** | Colab T4 | ⚡ **Recommended (Free T4)** | On T4 GPU, evaluates 50–100 puzzles in **2–3 minutes**. Possible on CPU for 0.5B, but noticeably slower. |
+| **`03_grpo_training.ipynb`** | Colab T4 / Kaggle | ✅ **Yes (Mandatory T4)** | RL requires sampling $G=4$ parallel completions per prompt. Takes ~1 hour on free T4 with LoRA. |
 
 ---
 
-## 🚀 Come Eseguire su Google Colab
+## 🚀 Execution Guide on Google Colab
 
-1. **Notebook 1 (Dataset)**:
-   * Aprilo su Colab (anche con CPU standard).
-   * Esegui tutte le celle per creare i file `train_countdown.jsonl` e `test_countdown.jsonl`.
+1. **Notebook 1 (Dataset & Verifier)**:
+   * Open in Colab (standard CPU).
+   * Runs unit tests and exports `train_countdown.jsonl` (1,000 puzzles) and `test_countdown.jsonl` (200 puzzles).
 2. **Notebook 2 (Baselines)**:
-   * Vai su `Runtime` -> `Change runtime type` -> Seleziona **T4 GPU**.
-   * Esegui il benchmark per registrare l'accuratezza di partenza di Zero-shot e CoT.
+   * Set runtime to **T4 GPU** (`Runtime -> Change runtime type -> T4 GPU`).
+   * Evaluates baseline Zero-Shot Direct vs Chain-of-Thought prompting and saves accuracy and token counts to `results/baselines.json`.
 3. **Notebook 3 (GRPO Training)**:
-   * Con **T4 GPU** attiva, avvia l'addestramento.
-   * Il modello impara spontaneamente a riflettere tra `<think>...</think>` per massimizzare il reward di accuratezza.
+   * Keeps **T4 GPU** enabled and launches GRPO RL training using Hugging Face TRL and LoRA (PEFT).
+   * Produces the final comparative table (Zero-Shot vs CoT vs GRPO) for the university report.
 
 ---
 
-## 📚 Riferimenti Bibliografici
+## 📚 References
 
 * **DeepSeekMath**: Shao et al. (2024). *DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models*. arXiv:2402.03300.
 * **DeepSeek-R1**: DeepSeek-AI (2025). *DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning*. arXiv:2501.12948.

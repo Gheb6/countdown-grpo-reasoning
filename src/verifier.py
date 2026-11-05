@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Optional, Any
 
 class CountdownVerifier:
     """
-    Verificatore deterministico e sicuro per il gioco Countdown basato su AST (Abstract Syntax Tree).
+    Deterministic and secure AST-based verifier for the Countdown math game.
     """
     ALLOWED_OPERATORS = {
         ast.Add: lambda a, b: a + b,
@@ -16,7 +16,7 @@ class CountdownVerifier:
         ast.UAdd: lambda a: +a
     }
 
-    # Includiamo esplicitamente le classi operatore perche ast.walk le visita come nodi figli
+    # Explicitly include operator classes because ast.walk visits them as child nodes of BinOp/UnaryOp
     ALLOWED_NODE_TYPES = (
         ast.Expression,
         ast.BinOp,
@@ -33,13 +33,14 @@ class CountdownVerifier:
 
     @staticmethod
     def extract_tags(text: str) -> Tuple[Optional[str], Optional[str]]:
-        """Estrae thought e answer dai tag XML-like <think> e <answer>."""
+        """Extract reasoning and final equation from XML-like tags <think> and <answer>."""
         think_match = re.search(r"<think>(.*?)</think>", text, re.DOTALL | re.IGNORECASE)
         thought = think_match.group(1).strip() if think_match else None
 
         answer_match = re.search(r"<answer>(.*?)</answer>", text, re.DOTALL | re.IGNORECASE)
         answer = answer_match.group(1).strip() if answer_match else None
 
+        # Fallback if the model produced an opening tag without a closing tag
         if not answer:
             answer_partial = re.search(r"<answer>(.*)", text, re.DOTALL | re.IGNORECASE)
             if answer_partial:
@@ -49,7 +50,7 @@ class CountdownVerifier:
 
     @classmethod
     def is_safe_ast(cls, tree: ast.AST) -> bool:
-        """Verifica che l'albero contenga SOLO nodi e operatori aritmetici consentiti."""
+        """Verify that the AST contains ONLY allowed arithmetic nodes and operators."""
         for node in ast.walk(tree):
             if not isinstance(node, cls.ALLOWED_NODE_TYPES):
                 return False
@@ -58,14 +59,14 @@ class CountdownVerifier:
             if isinstance(node, ast.UnaryOp) and type(node.op) not in cls.ALLOWED_OPERATORS:
                 return False
             if isinstance(node, ast.Constant):
-                # Esclude stringhe, None e booleani (in Python bool e sottoclasse di int)
+                # Exclude strings, None, and booleans (in Python, bool is a subclass of int)
                 if isinstance(node.value, bool) or not isinstance(node.value, (int, float)):
                     return False
         return True
 
     @classmethod
     def evaluate_ast(cls, node: ast.AST) -> Optional[float]:
-        """Valuta ricorsivamente un nodo AST consentendo solo operazioni matematiche di base."""
+        """Recursively evaluate an AST node, allowing only basic arithmetic operations."""
         if isinstance(node, ast.Expression):
             return cls.evaluate_ast(node.body)
 
@@ -96,7 +97,7 @@ class CountdownVerifier:
 
     @classmethod
     def extract_numbers_from_ast(cls, node: ast.AST) -> List[int]:
-        """Estrae tutti i numeri utilizzati nell'espressione AST."""
+        """Extract all numbers used in the parsed AST expression."""
         numbers = []
         for n in ast.walk(node):
             if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)) and not isinstance(n.value, bool):
@@ -109,8 +110,8 @@ class CountdownVerifier:
     @classmethod
     def verify(cls, available_numbers: List[int], target: int, completion: str) -> Dict[str, Any]:
         """
-        Verifica completa del completamento generato dal modello.
-        Restituisce un dizionario con lo stato di formattazione, validita e correttezza.
+        Full verification of the model completion.
+        Returns a dictionary containing formatting, validity, and correctness status.
         """
         thought, answer_str = cls.extract_tags(completion)
 
@@ -127,22 +128,22 @@ class CountdownVerifier:
         }
 
         if not answer_str:
-            result["error_msg"] = "Tag <answer> non trovato o vuoto"
+            result["error_msg"] = "Tag <answer> not found or empty"
             return result
 
-        # 1. Parsing AST e Whitelist di sicurezza
+        # 1. Parse AST and enforce security whitelist
         try:
             clean_expr = answer_str.split("=")[0].strip()
             tree = ast.parse(clean_expr, mode='eval')
             if not cls.is_safe_ast(tree):
-                result["error_msg"] = "Espressione contiene elementi non consentiti (solo +, -, *, /, parentesi e numeri)"
+                result["error_msg"] = "Expression contains unallowed elements (only +, -, *, /, parentheses, and numbers)"
                 return result
             result["valid_syntax"] = True
         except Exception as e:
-            result["error_msg"] = f"Errore sintassi AST: {e}"
+            result["error_msg"] = f"AST syntax error: {e}"
             return result
 
-        # 2. Controllo dei numeri utilizzati
+        # 2. Verify number usage constraints
         used_numbers = cls.extract_numbers_from_ast(tree)
         result["used_numbers"] = used_numbers
 
@@ -157,21 +158,21 @@ class CountdownVerifier:
 
         result["valid_numbers"] = valid_nums and (len(used_numbers) > 0)
         if not result["valid_numbers"]:
-            result["error_msg"] = f"Numeri non validi o usati piu volte: {used_numbers} (Disponibili: {available_numbers})"
+            result["error_msg"] = f"Invalid numbers or numbers used more than once: {used_numbers} (Available: {available_numbers})"
             return result
 
-        # 3. Calcolo del valore
+        # 3. Evaluate mathematical expression
         computed = cls.evaluate_ast(tree)
         result["computed_value"] = computed
 
         if computed is None:
-            result["error_msg"] = "Valutazione fallita (es. divisione per zero)"
+            result["error_msg"] = "Evaluation failed (e.g., division by zero)"
             return result
 
-        # 4. Controllo del target
+        # 4. Check target equality (with float tolerance for exact divisions)
         if abs(computed - target) < 1e-6:
             result["is_correct"] = True
         else:
-            result["error_msg"] = f"Risultato {computed} != target {target}"
+            result["error_msg"] = f"Computed result {computed} != target {target}"
 
         return result
