@@ -19,6 +19,19 @@ We compare three methodologies:
 
 ---
 
+## 📋 Proposal Compliance & Dataset Rationale
+
+For detailed academic documentation on how our dataset and methodology strictly align with the proposal submitted to Prof. Gallicchio and Dr. Ceni, and why 1,000 train + 200 test samples is the optimal sweet spot for free GPU tiers (Kaggle / Colab), please see:  
+👉 **[Project Proposal Alignment & Dataset Sizing Rationale](docs/PROPOSAL_ALIGNMENT_AND_DATASET.md)**
+
+### Key Highlights:
+* **Guaranteed Solvability**: 100% of puzzles generated with our recursive tree solver have at least one verified non-trivial solution.
+* **4 Numbers (1–100)**: Optimal difficulty standard for 0.5B–1.5B LLMs (*Gandhi et al., COLM 2025*).
+* **Anti-Hack AST Verifier**: Strictly enforces unique number usage from the prompt and rejects code injection or syntax exploits.
+* **Compute Feasibility**: 1,000 prompts $\times$ $G=4$ group rollouts = 4,000 policy updates, completing in ~45–60 minutes on free T4 GPUs.
+
+---
+
 ## 📁 Repository Structure
 
 ```text
@@ -31,6 +44,9 @@ countdown-grpo-reasoning/
 │   ├── verifier.py                    # CountdownVerifier class (secure AST parsing)
 │   ├── dataset_generator.py           # Recursive puzzle generator with guaranteed solvability
 │   └── rewards.py                     # Reward functions for TRL GRPOTrainer
+├── docs/                              # Detailed Academic Documentation
+│   ├── GRPO_CREDIT_ASSIGNMENT.md      # Mathematical derivation of GRPO relative advantages
+│   └── PROPOSAL_ALIGNMENT_AND_DATASET.md # Proposal alignment and dataset sizing rationale
 ├── papers/                            # Reference papers and Duplex Study Reader
 │   ├── Dispensa_Estratti_Studio_FronteRetro.pdf
 │   └── ...
@@ -59,10 +75,18 @@ countdown-grpo-reasoning/
    * Runs unit tests and exports `train_countdown.jsonl` (1,000 puzzles) and `test_countdown.jsonl` (200 puzzles).
 2. **Notebook 2 (Baselines)**:
    * Set runtime to **T4 GPU** (`Runtime -> Change runtime type -> T4 GPU`).
-   * Evaluates baseline Zero-Shot Direct vs Chain-of-Thought prompting and saves accuracy and token counts to `results/baselines.json`.
+   * Evaluates baseline Zero-Shot Direct vs Chain-of-Thought prompting. Automatically downloads `test_countdown.jsonl` from GitHub if not present locally.
+   * Saves metrics to `results/baselines.json`.
 3. **Notebook 3 (GRPO Training)**:
    * Keeps **T4 GPU** enabled and launches GRPO RL training using Hugging Face TRL and LoRA (PEFT).
    * Produces the final comparative table (Zero-Shot vs CoT vs GRPO) for the university report.
+
+---
+
+## 📖 In-Depth Theory & Credit Assignment Guide
+
+For a step-by-step mathematical breakdown of how GRPO assigns advantages and reinforces tokens without a Critic network, read our guide:  
+👉 **[Understanding Credit Assignment in GRPO (Step-by-Step Numerical Example)](docs/GRPO_CREDIT_ASSIGNMENT.md)**
 
 ---
 
@@ -72,10 +96,3 @@ countdown-grpo-reasoning/
 * **DeepSeek-R1**: DeepSeek-AI (2025). *DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning*. arXiv:2501.12948.
 * **Gandhi et al. (2025)**: *Cognitive Behaviors that Enable Self-Improving Reasoners, or, Four Habits of Highly Effective STaRs*. arXiv:2503.01307.
 * **Wei et al. (2022)**: *Chain-of-Thought Prompting Elicits Reasoning in Large Language Models*. NeurIPS 2022.
-
----
-
-## ?? In-Depth Theory & Credit Assignment Guide
-
-For a step-by-step mathematical breakdown of how GRPO assigns advantages and reinforces tokens without a Critic network, read our guide:  
-?? **[Understanding Credit Assignment in GRPO (Step-by-Step Numerical Example)](docs/GRPO_CREDIT_ASSIGNMENT.md)**
