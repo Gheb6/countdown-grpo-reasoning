@@ -11,15 +11,24 @@ class CountdownVerifier:
         ast.Sub: lambda a, b: a - b,
         ast.Mult: lambda a, b: a * b,
         ast.Div: lambda a, b: a / b if b != 0 else None,
+        ast.FloorDiv: lambda a, b: a // b if b != 0 else None,
         ast.USub: lambda a: -a,
         ast.UAdd: lambda a: +a
     }
 
+    # Includiamo esplicitamente le classi operatore perche ast.walk le visita come nodi figli
     ALLOWED_NODE_TYPES = (
         ast.Expression,
         ast.BinOp,
         ast.UnaryOp,
-        ast.Constant
+        ast.Constant,
+        ast.Add,
+        ast.Sub,
+        ast.Mult,
+        ast.Div,
+        ast.FloorDiv,
+        ast.USub,
+        ast.UAdd
     )
 
     @staticmethod
